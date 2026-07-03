@@ -39,5 +39,5 @@ The deployment scripts require a VM with the following configuration
 ## Ansible playbook
 
 ```bash
-ansible-playbook ansible/deploy.yaml --extra-vars "ansible_password=<localadmin password> ansible_become_password=<localadmin password> target=[develop|prod]"
+ansible-playbook ansible/deploy.yaml --extra-vars "ansible_password=<localadmin password> ansible_become_password=<localadmin password>"
 ```

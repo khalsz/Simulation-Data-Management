@@ -44,28 +44,36 @@
 
     - name: Install service script
       ansible.builtin.copy:
-        src: ./simdb-${{ target }}.service
+        src: ./simdb.service
         dest: /etc/systemd/system/simdb.service
-
-    - name: Install socket script
-      ansible.builtin.copy:
-        src: ./simdb.socket
-        dest: /etc/systemd/system/simdb.socket
 
     - name: Install nginx script
       ansible.builtin.copy:
         src: ./nginx_simdb.conf
         dest: /etc/nginx/conf.d/simdb.conf
 
-    - name: Enable nginx
-      become: true
-      ansible.builtin.command:
-        cmd: systemctl enable nginx
+    - name: Install proxy_params script
+      ansible.builtin.copy:
+        src: ./proxy_params
+        dest: /etc/nginx/proxy_params
 
-    - name: Enable simdb
+    - name: Enable service nginx
       become: true
-      ansible.builtin.command:
-        cmd: systemctl enable simdb
+      ansible.builtin.systemd_service:
+        name: nginx
+        enabled: true
+        state: restarted
+        daemon_reload: true
+
+    - name: Enable service simdb
+      become: true
+      ansible.builtin.systemd_service:
+        name: simdb
+        enabled: true
+        state: restarted
+        daemon_reload: true
 # TODO:
 # - postgresql
 # - database backup cronjob
+# - install and run old UI
+# - install and run new UI

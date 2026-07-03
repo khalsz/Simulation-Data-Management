@@ -1,0 +1,22 @@
+[Unit]
+Description=simdb gunicorn daemon
+After=network.target
+
+[Service]
+Type=simple
+User=sim
+Group=sim
+WorkingDirectory=/opt/simdb/current
+ExecStart=/opt/simdb/current/bin/gunicorn simdb.remote.wsgi:app \
+        --bind=127.0.0.1:8080 \
+        --user=sim \
+        --log-file=/opt/simdb/logs/simdb.log \
+        --workers=4 \
+        --timeout=600
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
