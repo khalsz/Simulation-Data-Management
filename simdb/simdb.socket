@@ -1,0 +1,11 @@
+[Unit]
+Description=simdb gunicorn socket
+
+[Socket]
+ListenStream=/run/simdb.sock
+SocketUser=sim
+SocketGroup=sim
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

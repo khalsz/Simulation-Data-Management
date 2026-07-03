@@ -1,0 +1,19 @@
+StudyID:
+  required: true
+  type: integer
+
+ModelID:
+  required: true
+  type: integer
+
+Description:
+  required: true
+  type: string
+
+Comments:
+  required: false
+  type: string
+
+User:
+  required: true
+  type: string

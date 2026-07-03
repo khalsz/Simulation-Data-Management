@@ -1,0 +1,42 @@
+studyid:
+  required: true
+  type: string
+studyurl:
+  required: true
+  type: string
+configuration:
+  required: true
+  type: string
+description:
+  required: true
+  type: string
+dateid:
+  required: false
+  type: string
+  regex: '[a-z]{3}\d{4}'
+shotid:
+  required: false
+  type: integer
+codeid:
+  required: false
+  type: string
+  regex: '[0-9a-zA-Z-_]+'
+seqid:
+  required: false
+  type: integer
+userid:
+  required: true
+  type: string
+  regex: '[a-z\d]+'
+workflow:
+  type: dict
+  required: true
+  schema:
+    commit:
+      type: string
+    repo:
+      type: string
+      regex: '(http|https|ssh)\:\/\/?[a-zA-Z0-9\.\/\?\:@\-_=#]+'
+    name:
+      type: string
+      regex: '[\w\-\s]+'

@@ -1,0 +1,3 @@
+schema:
+  required: false
+  type: string

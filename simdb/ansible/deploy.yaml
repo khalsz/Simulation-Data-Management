@@ -1,0 +1,71 @@
+- name: Simdb Upgrade
+  hosts: simdb_VM
+  become: false
+  vars:
+    user_home: "/home/localadmin"
+    sim_home: "/home/sim"
+    install_home: "/opt/simdb"
+    data_home: "/common/step-simdb"
+
+  tasks:
+    - name: Install simdb
+      become: true
+      become_user: sim
+      ansible.builtin.command:
+        cmd: >
+          cd ${{ install_home }}
+          && mkdir -p releases
+          && RELEASE=simdb_$(date '+%Y-%m-%d')
+          && python3 -m venv releases/$RELEASE
+          && . releases/$RELEASE/bin/activate
+          && pip install --upgrade pip
+          && pip install "{{ simdb_pip_package }}"
+          && pip install gunicorn
+          && ln -sf current releases/$RELEASE
+
+    - name: Install server config file
+      vars:
+        secret_token: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['hex'], length=32) }}"
+        admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits', 'punctuation']), length=16) }}"
+      ansible.builtin.template:
+        src: ./app-${{ target }}.cfg
+        dest: ${{ sim_home }}/.config/simdb/app.cfg
+        owner: sim
+        mode: "0644"
+        backup: yes
+
+    - name: Install validation files
+      ansible.builtin.copy:
+        src: "${{ item }}"
+        dest: "${{ sim_home }}/.config/simdb/"
+        owner: sim
+      with_fileglob:
+        - "validation*.yaml"
+
+    - name: Install service script
+      ansible.builtin.copy:
+        src: ./simdb-${{ target }}.service
+        dest: /etc/systemd/system/simdb.service
+
+    - name: Install socket script
+      ansible.builtin.copy:
+        src: ./simdb.socket
+        dest: /etc/systemd/system/simdb.socket
+
+    - name: Install nginx script
+      ansible.builtin.copy:
+        src: ./nginx_simdb.conf
+        dest: /etc/nginx/conf.d/simdb.conf
+
+    - name: Enable nginx
+      become: true
+      ansible.builtin.command:
+        cmd: systemctl enable nginx
+
+    - name: Enable simdb
+      become: true
+      ansible.builtin.command:
+        cmd: systemctl enable simdb
+# TODO:
+# - postgresql
+# - database backup cronjob

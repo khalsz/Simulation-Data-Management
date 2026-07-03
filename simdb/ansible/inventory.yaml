@@ -1,0 +1,9 @@
+simdb_VM:
+  hosts:
+    step-simdb-dev.apps.l:
+      ansible_connection: ssh
+      ansible_user: localadmin
+      simdb_user: sim
+      simdb_pip_package: imas-simdb[server,auth-ad]
+      target: develop
+      data_mount: /common/step-simdb
