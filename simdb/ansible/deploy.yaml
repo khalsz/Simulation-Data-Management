@@ -6,6 +6,8 @@
     sim_home: "/home/sim"
     install_home: "/opt/simdb"
     data_home: "/common/step-simdb"
+    db_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
+    release: "{{ lookup('ansible.builtin.pipe', 'date +%Y-%m-%d') }}"
 
   tasks:
     - name: Install simdb
@@ -13,49 +15,50 @@
       become_user: sim
       ansible.builtin.command:
         cmd: >
-          cd ${{ install_home }}
+          cd {{ install_home }}
           && mkdir -p releases
-          && RELEASE=simdb_$(date '+%Y-%m-%d')
-          && python3 -m venv releases/$RELEASE
-          && . releases/$RELEASE/bin/activate
+          && python3 -m venv releases/{{ release }}
+          && . releases/{{ release }}/bin/activate
           && pip install --upgrade pip
           && pip install "{{ simdb_pip_package }}"
           && pip install gunicorn
-          && ln -sf current releases/$RELEASE
+          && ln -sf current releases/{{ release }}
+        creates: "{{ install_home }}/releases/{{ release }}"
 
     - name: Install server config file
+      become: true
+      become_user: sim
       vars:
         secret_token: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['hex'], length=32) }}"
-        admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits', 'punctuation']), length=16) }}"
+        admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
       ansible.builtin.template:
-        src: ./app-${{ target }}.cfg
-        dest: ${{ sim_home }}/.config/simdb/app.cfg
+        src: "./app-{{ target }}.cfg"
+        dest: "{{ sim_home }}/.config/simdb/app.cfg"
         owner: sim
         mode: "0644"
         backup: yes
 
     - name: Install validation files
+      become: true
+      become_user: sim
       ansible.builtin.copy:
-        src: "${{ item }}"
-        dest: "${{ sim_home }}/.config/simdb/"
+        src: "{{ item }}"
+        dest: "{{ sim_home }}/.config/simdb/"
         owner: sim
       with_fileglob:
         - "validation*.yaml"
 
     - name: Install service script
+      become: true
       ansible.builtin.copy:
         src: ./simdb.service
         dest: /etc/systemd/system/simdb.service
 
     - name: Install nginx script
+      become: true
       ansible.builtin.copy:
         src: ./nginx_simdb.conf
         dest: /etc/nginx/conf.d/simdb.conf
-
-    - name: Install proxy_params script
-      ansible.builtin.copy:
-        src: ./proxy_params
-        dest: /etc/nginx/proxy_params
 
     - name: Enable service nginx
       become: true
@@ -72,8 +75,100 @@
         enabled: true
         state: restarted
         daemon_reload: true
+
+    - name: Set database password encryption
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_alter_system:
+        param: password_encryption
+        value: "scram-sha-256"
+
+    - name: Create a new database with name "simdb"
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: simdb
+        comment: SimDB database
+
+    - name: Create the simdb user
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        login_db: simdb
+        name: simdb
+        password: "{{ db_password }}"
+        comment: SimDB service account
+
+    - name: Install pgpass file
+      become: true
+      become_user: sim
+      ansible.builtin.template:
+        src: ./pgpass
+        dest: "{{ sim_home }}/.pgpass"
+        mode: "0600"
+
+    - name: Ensure a job that runs at 03:00 exists to backup the database"
+      become: true
+      become_user: sim
+      ansible.builtin.cron:
+        name: "backup database"
+        minute: "0"
+        hour: "3"
+        job: "/home/localadmin/db_backup.sh"
+
+    - name: Clone UI
+      become: true
+      become_user: sim
+      ansible.builtin.git:
+        repo: git@gitlab.ukaea.uk:step/simulation-data-management/simdb-ui.git
+        dest: "{{ install_home }}/ui/releases/{{ release }}"
+        single_branch: yes
+        version: master
+
+    # - name: Download UI tarball
+    #   become: true
+    #   become_user: sim
+    #   ansible.builtin.get_url:
+    #     url: https://gitlab.ukaea.uk/step/simulation-data-management/simdb-ui/-/archive/master/simdb-ui-master.tar.gz
+    #     dest: /opt/simdb/simdb-ui-master.tar.gz
+
+    - name: Install nvm
+      become: true
+      become_user: sim
+      ansible.builtin.command:
+        cmd: >
+          mkdir -p /opt/simdb.nvm
+          && export NVM_DIR=/opt/simdb/.nvm
+          && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+        creates: "/opt/simdb/.nvm/nvm.sh"
+
+    - name: Install npm
+      become: true
+      become_user: sim
+      ansible.builtin.command:
+        cmd: nvm install 24
+        creates: "/opt/simdb/.nvm/versions/node/v24*/bin/npm"
+
+    - name: Install env file
+      become: true
+      become_user: sim
+      vars:
+        secret_token: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['hex'], length=32) }}"
+      ansible.builtin.template:
+        src: ./env.local
+        dest: "{{ install_home }}/ui/releases/{{ release }}/.env.local"
+
+    - name: Install UI
+      become: true
+      become_user: sim
+      ansible.builtin.command:
+        cmd: >
+          cd {{ install_home }}/ui/releases/{{ release }}
+          && npm install
+          && npm run build
+          && cd {{ install_home }}/ui
+          && ln -sf current releases/{{ release }}
+        creates: "{{ install_home }}/ui/releases/{{ release }}/node_modules"
 # TODO:
 # - postgresql
 # - database backup cronjob
-# - install and run old UI
-# - install and run new UI

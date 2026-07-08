@@ -1,0 +1,15 @@
+[Unit]
+Description=SimDB STEP UI
+After=network.target
+
+[Service]
+Type=simple
+User=sim
+WorkingDirectory=/opt/simdb/ui/current
+ExecStart=/home/sim/.nvm/versions/node/v24.18.0/bin/npm run start
+Restart=always
+Environment=NODE_ENV=production
+Environment=PATH=/home/sim/.nvm/versions/node/v24.18.0/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target

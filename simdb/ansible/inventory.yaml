@@ -6,4 +6,16 @@ simdb_VM:
       simdb_user: sim
       simdb_pip_package: imas-simdb[server,auth-ad]
       target: develop
-      data_mount: /common/step-simdb
+      data_mount: /common/step-simdb/dev-simulations
+      ssl_cert: /etc/pki/tls/certs/step-simdb-dev.apps.l.pem
+      ssl_cert_key: /etc/pki/tls/private/step-simdb-dev.apps.l.key
+
+    step-simdb-prod.apps.l:
+      ansible_connection: ssh
+      ansible_user: localadmin
+      simdb_user: sim
+      simdb_pip_package: imas-simdb[server,auth-ad]
+      target: prod
+      data_mount: /common/step-simdb/simulations
+      ssl_cert: /etc/pki/tls/certs/step-simdb-prod.apps.l.pem
+      ssl_cert_key: /etc/pki/tls/private/step-simdb-prod.apps.l.key
