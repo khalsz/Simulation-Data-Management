@@ -1,0 +1,33 @@
+simdb_VM:
+  hosts:
+    step-simdb-dev.apps.l:
+      ansible_connection: ssh
+      ansible_user: localadmin
+      simdb_user: sim
+      # simdb_pip_package: imas-simdb[server,auth-ad,postgres]
+      # simdb_pip_package: >-
+      #   imas-simdb[server,auth-ad,postgres]
+      #   @ git+https://github.com/iterorganization/SimDB.git@main
+      simdb_pip_package: >-
+        imas-simdb[server,auth-ad,postgres]
+        @ git+https://{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git@develop
+      target: develop
+      data_mount: /common/step-simdb/dev-simulations
+      ssl_cert: /etc/pki/tls/certs/step-simdb-dev.apps.l.pem
+      ssl_cert_key: /etc/pki/tls/private/step-simdb-dev.apps.l.key
+      simdb_git_repo: >-
+        https://{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git
+      simdb_git_version: develop
+
+    step-simdb-prod.apps.l:
+      ansible_connection: ssh
+      ansible_user: localadmin
+      simdb_user: sim
+      # simdb_pip_package: imas-simdb[server,auth-ad,postgres]
+      simdb_pip_package: >-
+        imas-simdb[server,auth-ad,postgres]
+        @ git+https://github.com/iterorganization/SimDB.git@main
+      target: prod
+      data_mount: /common/step-simdb/simulations
+      ssl_cert: /etc/pki/tls/certs/step-simdb-prod.apps.l.pem
+      ssl_cert_key: /etc/pki/tls/private/step-simdb-prod.apps.l.key

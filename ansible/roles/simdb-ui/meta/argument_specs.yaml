@@ -1,0 +1,31 @@
+argument_specs:
+  main:
+    short_description: Installs and configures the SimDB STEP UI
+    version_added: 1.0.0
+    author: Jonathan Hollocombe
+    options:
+      simdb_ui_root:
+        description: The root directory of the SimDB UI bundle
+        type: str
+      simdb_user:
+        description: The user under which the SimDB UI service runs
+        type: str
+      release:
+        description: The release version of SimDB UI to install
+        type: str
+        required: true
+      artifact_url:
+        description: The URL of the SimDB UI artifact to download
+        type: str
+        required: true
+      gitlab_token:
+        description: The GitLab token to use for downloading the artifact
+        type: str
+        required: true
+      target:
+        description: The target environment to install SimDB UI for
+        type: str
+        required: true
+        choices:
+          - dev
+          - prod

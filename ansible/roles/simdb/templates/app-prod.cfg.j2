@@ -1,6 +1,6 @@
 [flask]
-flask_env = debug
-debug = True
+flask_env = production
+debug = False
 testing = False
 secret_key = {{ secret_token }}
 
@@ -8,15 +8,23 @@ secret_key = {{ secret_token }}
 upload_folder = {{ data_home }}
 ssl_enabled = False
 admin_password = {{ admin_password }}
-token_lifetime = 180
+token_lifetime = 3
 imas_remote_host = uda.ukaea.uk
 
 [database]
-type = sqlite
-file = /home/sim/simdb/sim.db
+type = postgres
+host = localhost
+port = 5432
+user = simdb
+password = {{ db_password }}
 
 [validation]
 auto_validate = True
+error_on_fail = True
+
+[validation "schema="]
+# Validation to use when no schema is specified
+path = /home/sim/.config/simdb/validation-schema-plasma.yaml
 error_on_fail = True
 
 [validation "schema=plasma"]

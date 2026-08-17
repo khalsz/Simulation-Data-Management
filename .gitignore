@@ -1,1 +1,6 @@
 venv
+artifacts.zip
+root.yaml
+test.yaml
+build/
+ansible/credentials/

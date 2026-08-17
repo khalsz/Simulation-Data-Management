@@ -1,0 +1,60 @@
+argument_specs:
+  main:
+    short_description: Installs and configures the SIMDB service
+    version_added: 1.0.0
+    author: Jonathan Hollocombe
+    options:
+      release:
+        description: The release version of SimDB to install
+        type: str
+        required: true
+      user_home:
+        description: The home directory of the user who runs the systemd services
+        type: str
+      simdb_user:
+        description: The user under which the SimDB service runs
+        type: str
+      sim_home:
+        description: The home directory of the user under which the SimDB service runs
+        type: str
+      install_home:
+        description: The location of the SimDB installation
+        type: str
+      data_home:
+        description: The root directory under which SimDB data is stored
+        type: str
+        required: true
+      db_backup_dir:
+        description: The root directory under which SimDB database backups are stored
+        type: str
+        required: true
+      simdb_port:
+        description: The port on which the SimDB service listens
+        type: int
+      ssl_cert:
+        description: The path to the SSL certificate
+        type: str
+        required: true
+      ssl_cert_key:
+        description: The path to the SSL certificate key
+        type: str
+        required: true
+      domain_name:
+        description: The domain name for the server
+        type: str
+        required: true
+      target:
+        description: The target environment to install SimDB for
+        type: str
+        required: true
+        choices:
+          - dev
+          - prod
+      simdb_git_repo:
+        description: The Git repository URL for SimDB
+        type: str
+        required: true
+      simdb_git_version:
+        description: The Git version to install for SimDB
+        type: str
+        required: true

@@ -1,0 +1,29 @@
+client_max_body_size 20000M;
+
+server {
+    listen 443 ssl;
+    server_name localhost; # or the address of the server you are running
+
+    # Use only TLS
+    ssl_protocols TLSv1.1 TLSv1.2;
+
+    # Tell client which ciphers are available
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDH+AESGCM:ECDH+AES256:ECDH+AES128:DH+3DES:!ADH:!AECDH:!MD5;
+
+    # Certificates
+    ssl_certificate     {{ ssl_cert }};
+    ssl_certificate_key {{ ssl_cert_key }};
+
+    include /etc/nginx/conf.d/simdb.d/*.conf;
+}
+
+server {
+    if ($host = {{ domain_name }}) {
+        return 301 https://$host$request_uri;
+    }
+
+    listen        80;
+    server_name   {{ domain_name }};
+    return 404;
+}

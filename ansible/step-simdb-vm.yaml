@@ -1,0 +1,13 @@
+- name: STEP SimDB VM
+  hosts: simdb_VM
+  become: false
+  vars:
+    release: "{{ lookup('ansible.builtin.pipe', 'date +%Y-%m-%d') }}"
+    # Database password cannot use punctuation characters for now
+    # db_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/db_password', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
+    db_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/db_password', chars=['ascii_letters', 'digits'], length=16) }}"
+    artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
+
+  roles:
+    - role: simdb
+    - role: simdb-ui

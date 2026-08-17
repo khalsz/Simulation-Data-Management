@@ -1,0 +1,5 @@
+user_home: "/home/localadmin"
+simdb_user: "sim"
+sim_home: "/home/sim"
+install_home: "/opt/simdb"
+simdb_port: 8080

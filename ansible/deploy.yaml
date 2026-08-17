@@ -6,31 +6,40 @@
     sim_home: "/home/sim"
     install_home: "/opt/simdb"
     data_home: "/common/step-simdb"
-    db_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
-    release: "{{ lookup('ansible.builtin.pipe', 'date +%Y-%m-%d') }}"
+    db_password: "{{ lookup('password', 'credentials/{{ target }}/db_password', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
+    release: "{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+    # release: 0.15.3
 
   tasks:
-    - name: Install simdb
+    - name: Create virtual enviroment
+      ansible.builtin.pip:
+        virtualenv: "{{ install_home }}/releases/{{ release }}"
+        virtualenv_python: python3
+        state: present
+
+    - name: Pip install simdb
+      ansible.builtin.pip:
+        name: "{{ item }}"
+        state: latest
+        virtualenv: "{{ install_home }}/releases/{{ release }}"
+      loop:
+        - "{{ simdb_pip_package }}"
+        - gunicorn
+
+    - name: Create release symlink
       become: true
       become_user: sim
-      ansible.builtin.command:
-        cmd: >
-          cd {{ install_home }}
-          && mkdir -p releases
-          && python3 -m venv releases/{{ release }}
-          && . releases/{{ release }}/bin/activate
-          && pip install --upgrade pip
-          && pip install "{{ simdb_pip_package }}"
-          && pip install gunicorn
-          && ln -sf current releases/{{ release }}
-        creates: "{{ install_home }}/releases/{{ release }}"
+      ansible.builtin.file:
+        src: "{{ install_home }}/releases/{{ release }}"
+        dest: "{{ install_home }}/current"
+        state: link
 
     - name: Install server config file
       become: true
       become_user: sim
       vars:
-        secret_token: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['hex'], length=32) }}"
-        admin_password: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
+        secret_token: "{{ lookup('password', 'credentials/{{ target }}/secret_token', chars=['hex'], length=32) }}"
+        admin_password: "{{ lookup('password', 'credentials/{{ target }}/admin_password', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
       ansible.builtin.template:
         src: "./app-{{ target }}.cfg"
         dest: "{{ sim_home }}/.config/simdb/app.cfg"
@@ -99,6 +108,14 @@
         password: "{{ db_password }}"
         comment: SimDB service account
 
+    - name: Change simdb db owner
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_owner:
+        name: simdb
+        owner: simdb
+        login_db: simdb
+
     - name: Install pgpass file
       become: true
       become_user: sim
@@ -128,32 +145,33 @@
     # - name: Download UI tarball
     #   become: true
     #   become_user: sim
-    #   ansible.builtin.get_url:
+    #   get_url:
     #     url: https://gitlab.ukaea.uk/step/simulation-data-management/simdb-ui/-/archive/master/simdb-ui-master.tar.gz
     #     dest: /opt/simdb/simdb-ui-master.tar.gz
 
     - name: Install nvm
       become: true
       become_user: sim
-      ansible.builtin.command:
-        cmd: >
-          mkdir -p /opt/simdb.nvm
-          && export NVM_DIR=/opt/simdb/.nvm
-          && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
-        creates: "/opt/simdb/.nvm/nvm.sh"
+      ansible.builtin.shell: |
+        mkdir -p /opt/simdb.nvm
+        export NVM_DIR=/opt/simdb/.nvm
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+      creates: "/opt/simdb/.nvm/nvm.sh"
 
     - name: Install npm
       become: true
       become_user: sim
-      ansible.builtin.command:
-        cmd: nvm install 24
-        creates: "/opt/simdb/.nvm/versions/node/v24*/bin/npm"
+      ansible.builtin.shell: |
+        export NVM_DIR=/opt/simdb/.nvm
+        source $NVM_DIR/nvm.sh
+        nvm install 24
+      creates: "/opt/simdb/.nvm/versions/node/v24*/bin/npm"
 
-    - name: Install env file
+    - name: Install UI env file
       become: true
       become_user: sim
       vars:
-        secret_token: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['hex'], length=32) }}"
+        secret_token: "{{ lookup('password', 'credentials/{{ target }}/ui/secret_token', chars=['hex'], length=32) }}"
       ansible.builtin.template:
         src: ./env.local
         dest: "{{ install_home }}/ui/releases/{{ release }}/.env.local"
@@ -161,14 +179,16 @@
     - name: Install UI
       become: true
       become_user: sim
-      ansible.builtin.command:
-        cmd: >
-          cd {{ install_home }}/ui/releases/{{ release }}
-          && npm install
-          && npm run build
-          && cd {{ install_home }}/ui
-          && ln -sf current releases/{{ release }}
-        creates: "{{ install_home }}/ui/releases/{{ release }}/node_modules"
-# TODO:
-# - postgresql
-# - database backup cronjob
+      ansible.builtin.shell: |
+        cd {{ install_home }}/ui/releases/{{ release }}
+        npm install
+        npm run build
+      creates: "{{ install_home }}/ui/releases/{{ release }}/node_modules"
+
+    - name: Create UI release symlink
+      become: true
+      become_user: sim
+      ansible.builtin.file:
+        src: "{{ install_home }}/ui/releases/{{ release }}"
+        dest: "{{ install_home }}/ui/current"
+        state: link

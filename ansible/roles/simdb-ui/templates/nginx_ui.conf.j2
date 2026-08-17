@@ -1,0 +1,8 @@
+location /assets {
+    root {{ simdb_ui_root }}/current;
+}
+
+location / {
+    root {{ simdb_ui_root }}/current;
+    try_files /index.html =404;
+}

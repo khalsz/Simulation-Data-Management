@@ -1,0 +1,217 @@
+- name: Pip install simdb
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    state: latest
+    virtualenv: "{{ install_home }}/releases/{{ release }}"
+    virtualenv_command: /usr/bin/python3 -m venv
+    # move to python3.14 when SimDB has migrated to newer flask version
+    # virtualenv_command: /usr/bin/python3.14 -m venv
+  loop:
+    - "{{ simdb_pip_package }}"
+    - gunicorn
+
+- name: Create release symlink
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.file:
+    src: "{{ install_home }}/releases/{{ release }}"
+    dest: "{{ install_home }}/current"
+    state: link
+
+- name: Create config directory
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.file:
+    path: "{{ sim_home }}/.config/simdb"
+    state: directory
+    owner: sim
+    mode: "0700"
+
+- name: Install server config file
+  become: true
+  become_user: "{{ simdb_user }}"
+  vars:
+    secret_token: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/secret_token', chars=['hex'], length=32) }}"
+    admin_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/admin_password', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
+  ansible.builtin.template:
+    src: "./app-{{ target }}.cfg.j2"
+    dest: "{{ install_home }}/current/app.cfg"
+    owner: sim
+    mode: "0600"
+    backup: yes
+
+- name: Create validation directory
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.file:
+    path: "{{ install_home }}/current/validation"
+    state: directory
+    owner: sim
+    mode: "0700"
+
+- name: Install validation files
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ install_home }}/current/validation/"
+    owner: sim
+  with_fileglob:
+    - "validation*.yaml"
+
+# -----------------------------------------------------------------------------
+# Cannot overwrite /etc/systemd/system/simdb.service so need to render to temp
+# location and then cat into /etc/systemd/system/simdb.service
+- name: Render service file to temp location
+  ansible.builtin.template:
+    src: simdb.service.j2
+    dest: /tmp/simdb.service.tmp
+
+- name: Check if service file needs updating
+  ansible.builtin.shell: diff /tmp/simdb.service.tmp /etc/systemd/system/simdb.service
+  register: service_diff
+  changed_when: false
+  failed_when: service_diff.rc > 1
+
+- name: Write simdb service file
+  ansible.builtin.shell:
+    cmd: cat /tmp/simdb.service.tmp > /etc/systemd/system/simdb.service
+  when: service_diff.rc == 1
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Nginx configuration
+- name: Install nginx script
+  ansible.builtin.template:
+    src: ./nginx_simdb.conf.j2
+    dest: /etc/nginx/conf.d/simdb.conf
+
+- name: Create SimDB nginx config directory
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/simdb.d
+    state: directory
+    mode: "0755"
+
+- name: Install nginx script
+  ansible.builtin.template:
+    src: ./nginx_api.conf.j2
+    dest: /etc/nginx/conf.d/simdb.d/api.conf
+
+# -----------------------------------------------------------------------------
+# PostgreSQL database setup
+- name: Set database password encryption
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_alter_system:
+    param: password_encryption
+    value: "'scram-sha-256'"
+
+- name: Create a new database with name "simdb"
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: simdb
+    comment: SimDB database
+
+- name: Create the simdb user
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    login_db: simdb
+    name: simdb
+    password: "{{ db_password }}"
+    comment: SimDB service account
+
+- name: Change simdb db owner
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_owner:
+    new_owner: simdb
+    login_db: simdb
+
+- name: Add simdb user to pg_hba.conf
+  become: true
+  become_user: postgres
+  ansible.builtin.lineinfile:
+    path: /data/pgsql/data/pg_hba.conf
+    line: "host    simdb           simdb           0.0.0.0/0               scram-sha-256"
+    state: present
+    insertafter: "^# Other local users (use password instead of trust)"
+
+- name: Install pgpass file
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.template:
+    src: ./pgpass.j2
+    dest: "{{ sim_home }}/.pgpass"
+    mode: "0600"
+
+# -----------------------------------------------------------------------------
+# Alembic migrations
+
+- name: Git checkout
+  ansible.builtin.git:
+    repo: "{{ simdb_git_repo }}"
+    dest: "{{ install_home }}/current/simdb"
+    version: "{{ simdb_git_version }}"
+
+- name: Run Alembic migrations
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.command: "{{ install_home }}/current/bin/alembic upgrade head"
+  args:
+    chdir: "{{ install_home }}/current/simdb"
+
+# -----------------------------------------------------------------------------
+# Systemd services
+
+- name: Create SimDB logs directory
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.file:
+    path: "{{ install_home }}/logs"
+    state: directory
+    owner: "{{ simdb_user }}"
+    group: "{{ simdb_user }}"
+    mode: "0755"
+
+- name: Reload systemd daemon
+  ansible.builtin.command: sudo systemctl daemon-reload
+  changed_when: true
+
+- name: Enable SimDB service
+  ansible.builtin.command: sudo systemctl enable simdb
+  changed_when: true
+
+- name: Restart SimDB service
+  ansible.builtin.command: sudo systemctl restart simdb
+  changed_when: true
+
+- name: Enable Nginx service
+  ansible.builtin.command: sudo systemctl enable nginx
+  changed_when: true
+
+- name: Restart Nginx service
+  ansible.builtin.command: sudo systemctl restart nginx
+  changed_when: true
+
+# - name: Enable and restart simdb service
+#   become: true
+#   ansible.builtin.systemd_service:
+#     name: simdb
+#     enabled: true
+#     state: restarted
+
+# -----------------------------------------------------------------------------
+# Database backup
+
+- name: Ensure a job that runs at 03:00 exists to backup the database"
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.cron:
+    name: "backup database"
+    minute: "0"
+    hour: "3"
+    job: "/home/localadmin/db_backup.sh"

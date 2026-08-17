@@ -1,0 +1,22 @@
+Cmnd_Alias WEBSERVICES = \
+    /usr/bin/systemctl start nginx, \
+    /usr/bin/systemctl stop nginx, \
+    /usr/bin/systemctl restart nginx, \
+    /usr/bin/systemctl reload nginx, \
+    /usr/bin/systemctl status nginx, \
+    /usr/bin/systemctl enable nginx, \
+    /usr/bin/systemctl start postgresql, \
+    /usr/bin/systemctl stop postgresql, \
+    /usr/bin/systemctl restart postgresql, \
+    /usr/bin/systemctl status postgresql, \
+    /usr/bin/systemctl start simdb, \
+    /usr/bin/systemctl stop simdb, \
+    /usr/bin/systemctl restart simdb, \
+    /usr/bin/systemctl enable simdb, \
+    /usr/bin/systemctl disable simdb, \
+    /usr/bin/systemctl daemon-reload
+
+localadmin ALL=(root) NOPASSWD: WEBSERVICES
+localadmin ALL=(postgres) ALL
+
+localadmin ALL=(sim) ALL
