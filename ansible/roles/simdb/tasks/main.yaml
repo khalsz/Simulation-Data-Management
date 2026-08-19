@@ -82,21 +82,22 @@
 
 # -----------------------------------------------------------------------------
 # Nginx configuration
-- name: Install nginx script
+
+- name: Install nginx site configuration
   ansible.builtin.template:
-    src: ./nginx_simdb.conf.j2
-    dest: /etc/nginx/conf.d/simdb.conf
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0644
+  loop:
+    - { src: './nginx_simdb.conf.j2', dest: '/etc/nginx/conf.d/simdb.conf' }
+    - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
+  notify: Restart Nginx service
 
 - name: Create SimDB nginx config directory
   ansible.builtin.file:
     path: /etc/nginx/conf.d/simdb.d
     state: directory
     mode: "0755"
-
-- name: Install nginx script
-  ansible.builtin.template:
-    src: ./nginx_api.conf.j2
-    dest: /etc/nginx/conf.d/simdb.d/api.conf
 
 # -----------------------------------------------------------------------------
 # PostgreSQL database setup
