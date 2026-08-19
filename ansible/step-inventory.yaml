@@ -8,10 +8,10 @@ simdb_VM:
       # simdb_pip_package: >-
       #   imas-simdb[server,auth-ad,postgres]
       #   @ git+https://github.com/iterorganization/SimDB.git@main
-      simdb_pip_package: >-
-        imas-simdb[server,auth-ad,postgres]
-        @ git+https://{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git@develop
-      target: develop
+      # simdb_pip_package: >-
+      #   imas-simdb[server,auth-ad,postgres]
+      #   @ git+https://{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git@develop
+      target: dev
       data_mount: /common/step-simdb/dev-simulations
       ssl_cert: /etc/pki/tls/certs/step-simdb-dev.apps.l.pem
       ssl_cert_key: /etc/pki/tls/private/step-simdb-dev.apps.l.key

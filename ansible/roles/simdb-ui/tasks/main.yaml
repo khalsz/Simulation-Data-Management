@@ -1,3 +1,13 @@
+- name: Create UI directory
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.file:
+    path: "{{ simdb_ui_root }}"
+    state: directory
+    owner: sim
+    group: sim
+    mode: "0755"
+
 - name: Create releases directory
   become: true
   become_user: "{{ simdb_user }}"
@@ -5,16 +15,17 @@
     path: "{{ simdb_ui_root }}/releases"
     state: directory
     owner: sim
+    group: sim
     mode: "0755"
 
 - name: Download SimDB UI artifact
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.get_url:
-    url: "{{ artifact_url }}"
+    url: "{{ simdb_ui_artifact_url }}"
     dest: "{{ simdb_ui_root }}/releases/{{ release }}.zip"
     headers:
-      PRIVATE-TOKEN: "{{ gitlab_token }}"
+      PRIVATE-TOKEN: "{{ simdb_ui_gitlab_token }}"
 
 - name: Create release directory
   become: true
@@ -23,6 +34,7 @@
     path: "{{ simdb_ui_root }}/releases/{{ release }}"
     state: directory
     owner: sim
+    group: sim
     mode: "0755"
 
 - name: Extract SimDB UI artifact
@@ -33,13 +45,14 @@
     dest: "{{ simdb_ui_root }}/releases/{{ release }}"
     remote_src: true
     owner: sim
+    group: sim
     mode: "0755"
 
 - name: Create release symlink
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.file:
-    src: "{{ simdb_ui_root }}/releases/{{ release }}/build/{{ target }}"
+    src: "{{ simdb_ui_root }}/releases/{{ release }}/build/{{ 'dev' if target == 'develop' else 'prod' }}"
     dest: "{{ simdb_ui_root }}/current"
     state: link
 
@@ -67,3 +80,19 @@
 #     enabled: true
 #     state: restarted
 #     daemon_reload: true
+
+# -----------------------------------------------------------------------------
+# Check SimDB UI
+
+- name: Validate SimDB UI
+  ansible.builtin.uri:
+    url: https://localhost/
+    validate_certs: false
+    return_content: true
+  register: simdb_ui
+
+- name: Assert SimDB UI is correct
+  ansible.builtin.assert:
+    that:
+      - simdb_ui.status == 200
+      - "'<title>SimDB</title>' in simdb_ui.content"

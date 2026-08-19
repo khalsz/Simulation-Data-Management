@@ -14,11 +14,11 @@ argument_specs:
         description: The release version of SimDB UI to install
         type: str
         required: true
-      artifact_url:
+      simdb_ui_artifact_url:
         description: The URL of the SimDB UI artifact to download
         type: str
         required: true
-      gitlab_token:
+      simdb_ui_gitlab_token:
         description: The GitLab token to use for downloading the artifact
         type: str
         required: true
@@ -27,5 +27,5 @@ argument_specs:
         type: str
         required: true
         choices:
-          - dev
+          - develop
           - prod

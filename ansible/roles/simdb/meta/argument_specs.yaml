@@ -48,8 +48,12 @@ argument_specs:
         type: str
         required: true
         choices:
-          - dev
+          - develop
           - prod
+      simdb_pip_package:
+        description: The pip package for SimDB
+        type: str
+        required: true
       simdb_git_repo:
         description: The Git repository URL for SimDB
         type: str

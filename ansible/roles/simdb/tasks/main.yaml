@@ -5,9 +5,9 @@
     name: "{{ item }}"
     state: latest
     virtualenv: "{{ install_home }}/releases/{{ release }}"
-    virtualenv_command: /usr/bin/python3 -m venv
+    # virtualenv_command: /usr/bin/python3 -m venv
     # move to python3.14 when SimDB has migrated to newer flask version
-    # virtualenv_command: /usr/bin/python3.14 -m venv
+    virtualenv_command: /usr/bin/python3.14 -m venv
   loop:
     - "{{ simdb_pip_package }}"
     - gunicorn
@@ -150,19 +150,36 @@
 
 # -----------------------------------------------------------------------------
 # Alembic migrations
+# - needed while migrations are not pip installed
 
 - name: Git checkout
+  become: true
+  become_user: "{{ simdb_user }}"
   ansible.builtin.git:
     repo: "{{ simdb_git_repo }}"
     dest: "{{ install_home }}/current/simdb"
     version: "{{ simdb_git_version }}"
+
+- name: Copy Alembic files
+  become: true
+  become_user: "{{ simdb_user }}"
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ install_home }}/current"
+    remote_src: yes
+    mode: preserve
+  loop:
+    - "{{ install_home }}/current/simdb/alembic.ini"
+    - "{{ install_home }}/current/simdb/alembic"
 
 - name: Run Alembic migrations
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.command: "{{ install_home }}/current/bin/alembic upgrade head"
   args:
-    chdir: "{{ install_home }}/current/simdb"
+    chdir: "{{ install_home }}/current"
+  environment:
+    DATABASE_URL: postgresql://simdb@localhost/simdb
 
 # -----------------------------------------------------------------------------
 # Systemd services
@@ -215,3 +232,31 @@
     minute: "0"
     hour: "3"
     job: "/home/localadmin/db_backup.sh"
+
+# -----------------------------------------------------------------------------
+# Check SimDB service
+
+- name: Check SimDB service
+  ansible.builtin.uri:
+    url: "http://localhost:{{ simdb_port }}"
+    method: GET
+    return_content: true
+  register: result
+
+- name: Print SimDB service version
+  ansible.builtin.debug:
+    msg: "Installed SimDB server version: {{ result.json.server_version }}"
+
+- name: Check nginx proxy
+  ansible.builtin.uri:
+    url: "https://localhost/api/"
+    method: GET
+    validate_certs: false
+    return_content: true
+  register: nginx_simdb
+
+- name: Assert nginx proxy is correct
+  ansible.builtin.assert:
+    that:
+      - nginx_simdb.status == 200
+      - "'server_version' in nginx_simdb.json"
