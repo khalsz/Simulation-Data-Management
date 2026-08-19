@@ -3,7 +3,7 @@
   become_user: "{{ simdb_user }}"
   ansible.builtin.pip:
     name: "{{ item }}"
-    state: latest
+    state: present
     virtualenv: "{{ install_home }}/releases/{{ simdb_git_version }}"
     # virtualenv_command: /usr/bin/python3 -m venv
     # move to python3.14 when SimDB has migrated to newer flask version
