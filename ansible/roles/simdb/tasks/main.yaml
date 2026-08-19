@@ -4,7 +4,7 @@
   ansible.builtin.pip:
     name: "{{ item }}"
     state: latest
-    virtualenv: "{{ install_home }}/releases/{{ release }}"
+    virtualenv: "{{ install_home }}/releases/{{ simdb_git_version }}"
     # virtualenv_command: /usr/bin/python3 -m venv
     # move to python3.14 when SimDB has migrated to newer flask version
     virtualenv_command: /usr/bin/python3.14 -m venv
@@ -16,7 +16,7 @@
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.file:
-    src: "{{ install_home }}/releases/{{ release }}"
+    src: "{{ install_home }}/releases/{{ simdb_git_version }}"
     dest: "{{ install_home }}/current"
     state: link
 

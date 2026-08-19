@@ -4,10 +4,6 @@ argument_specs:
     version_added: 1.0.0
     author: Jonathan Hollocombe
     options:
-      release:
-        description: The release version of SimDB to install
-        type: str
-        required: true
       user_home:
         description: The home directory of the user who runs the systemd services
         type: str

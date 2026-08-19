@@ -10,10 +10,6 @@ argument_specs:
       simdb_user:
         description: The user under which the SimDB UI service runs
         type: str
-      release:
-        description: The release version of SimDB UI to install
-        type: str
-        required: true
       simdb_ui_artifact_url:
         description: The URL of the SimDB UI artifact to download
         type: str

@@ -23,7 +23,7 @@
   become_user: "{{ simdb_user }}"
   ansible.builtin.get_url:
     url: "{{ simdb_ui_artifact_url }}"
-    dest: "{{ simdb_ui_root }}/releases/{{ release }}.zip"
+    dest: "{{ simdb_ui_root }}/releases/{{ simdb_ui_git_version }}.zip"
     headers:
       PRIVATE-TOKEN: "{{ simdb_ui_gitlab_token }}"
 
@@ -31,7 +31,7 @@
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.file:
-    path: "{{ simdb_ui_root }}/releases/{{ release }}"
+    path: "{{ simdb_ui_root }}/releases/{{ simdb_ui_git_version }}"
     state: directory
     owner: sim
     group: sim
@@ -41,8 +41,8 @@
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.unarchive:
-    src: "{{ simdb_ui_root }}/releases/{{ release }}.zip"
-    dest: "{{ simdb_ui_root }}/releases/{{ release }}"
+    src: "{{ simdb_ui_root }}/releases/{{ simdb_ui_git_version }}.zip"
+    dest: "{{ simdb_ui_root }}/releases/{{ simdb_ui_git_version }}"
     remote_src: true
     owner: sim
     group: sim
@@ -52,7 +52,7 @@
   become: true
   become_user: "{{ simdb_user }}"
   ansible.builtin.file:
-    src: "{{ simdb_ui_root }}/releases/{{ release }}/build/{{ 'dev' if target == 'develop' else 'prod' }}"
+    src: "{{ simdb_ui_root }}/releases/{{ simdb_ui_git_version }}/build/{{ 'dev' if target == 'develop' else 'prod' }}"
     dest: "{{ simdb_ui_root }}/current"
     state: link
 

@@ -8,3 +8,4 @@ run_test_vm.sh
 *_secrets.yaml
 test_vm_inventory.yaml
 test_vm_setup.yaml
+sudoers
