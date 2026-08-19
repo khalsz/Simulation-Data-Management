@@ -92,7 +92,6 @@
   loop:
     - { src: './nginx_simdb.conf.j2', dest: '/etc/nginx/conf.d/simdb.conf' }
     - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
-  notify: Restart Nginx service
 
 - name: Create SimDB nginx config directory
   ansible.builtin.file:
@@ -109,28 +108,18 @@
     param: password_encryption
     value: "'scram-sha-256'"
 
-- name: Create a new database with name "simdb"
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_db:
-    name: simdb
-    comment: SimDB database
-
 - name: Create the simdb user
-  become: true
-  become_user: postgres
   community.postgresql.postgresql_user:
-    login_db: simdb
+    login_db: postgres
     name: simdb
     password: "{{ db_password }}"
     comment: SimDB service account
 
-- name: Change simdb db owner
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_owner:
-    new_owner: simdb
-    login_db: simdb
+- name: Create database owned by "simdb"
+  community.postgresql.postgresql_db:
+    name: simdb
+    owner: simdb
+    comment: SimDB database
 
 - name: Add simdb user to pg_hba.conf
   become: true
