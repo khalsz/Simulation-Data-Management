@@ -78,6 +78,21 @@
   ansible.builtin.shell:
     cmd: cat /tmp/simdb.service.tmp > /etc/systemd/system/simdb.service
   when: service_diff.rc == 1
+  notify: 
+    - Reload systemd daemon
+    - Restart SimDB Service
+
+  ### But I suggest if we run the below with sudo user, we can achieve overwrite with indempotency
+  
+  # - name: Install SimDB systemd service
+  # ansible.builtin.template:
+  #   src: simdb.service.j2
+  #   dest: /etc/systemd/system/simdb.service
+  #   mode: "0644"
+  # become: true
+  # notify:
+  #   - Reload systemd daemon
+  #   - Restart SimDB service
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -91,6 +106,7 @@
   loop:
     - { src: './nginx_simdb.conf.j2', dest: '/etc/nginx/conf.d/simdb.conf' }
     - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
+  notify: Restart Nginx Service
 
 - name: Create SimDB nginx config directory
   ansible.builtin.file:
@@ -145,6 +161,7 @@
   loop:
     - simdb
     - simdb_admin
+  notify: Reload PostgreSQL service
 
 - name: Install pgpass file
   become: true
@@ -227,25 +244,25 @@
     group: "{{ simdb_user }}"
     mode: "0755"
 
-- name: Reload systemd daemon
-  ansible.builtin.command: sudo systemctl daemon-reload
-  changed_when: true
+# - name: Reload systemd daemon
+#   ansible.builtin.command: sudo systemctl daemon-reload
+#   changed_when: true
 
-- name: Enable SimDB service
-  ansible.builtin.command: sudo systemctl enable simdb
-  changed_when: true
+# - name: Enable SimDB service
+#   ansible.builtin.command: sudo systemctl enable simdb
+#   changed_when: true
 
-- name: Restart SimDB service
-  ansible.builtin.command: sudo systemctl restart simdb
-  changed_when: true
+# - name: Restart SimDB service
+#   ansible.builtin.command: sudo systemctl restart simdb
+#   changed_when: true
 
-- name: Enable Nginx service
-  ansible.builtin.command: sudo systemctl enable nginx
-  changed_when: true
+# - name: Enable Nginx service
+#   ansible.builtin.command: sudo systemctl enable nginx
+#   changed_when: true
 
-- name: Restart Nginx service
-  ansible.builtin.command: sudo systemctl restart nginx
-  changed_when: true
+# - name: Restart Nginx service
+#   ansible.builtin.command: sudo systemctl restart nginx
+#   changed_when: true
 
 # - name: Enable and restart simdb service
 #   become: true
