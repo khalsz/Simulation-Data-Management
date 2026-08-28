@@ -1,0 +1,25 @@
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  become: true
+
+- name: Restart SimDB Service
+  ansible.builtin.systemd_service:
+    name: simdb
+    state: restarted
+    enabled: true
+  become: true
+
+- name: Restart Nginx Service
+  ansible.builtin.systemd_service:
+    name: nginx
+    state: restarted
+    enabled: true
+  become: true
+
+- name: Reload PostgreSQL service
+  ansible.builtin.systemd_service:
+    name: postgresql
+    state: reloaded
+  become: true

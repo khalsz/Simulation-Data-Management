@@ -17,7 +17,6 @@ ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5
 PrivateTmp=true
-Environment=SIMDB_CONFIG_FILE={{ install_home }}/current/app.cfg
-
+Environment="SIMDB_CONFIG_FILE={{ install_home }}/current/app.cfg"
 [Install]
 WantedBy=multi-user.target
