@@ -3,11 +3,14 @@
   become_user: "{{ simdb_user }}"
   ansible.builtin.pip:
     name: "{{ item }}"
-    state: present
+    #latest tries to reinstall, since we already specified the exact one we want, 
+    # should only install if the version changes. 
+    state: present 
     virtualenv: "{{ install_home }}/releases/{{ simdb_git_version }}"
     # virtualenv_command: /usr/bin/python3 -m venv
     # move to python3.14 when SimDB has migrated to newer flask version
-    virtualenv_command: /usr/bin/python3.14 -m venv
+    virtualenv_command: /usr/bin/{{ python_version }} -m venv  # may be we let people specify the python version they want. 
+                                  # python3.14 was having conflict with the Werkzeug library in main branch.
   loop:
     - "{{ simdb_pip_package }}"
     - gunicorn
@@ -62,44 +65,30 @@
     - "validation*.yaml"
 
 # -----------------------------------------------------------------------------
-# Cannot overwrite /etc/systemd/system/simdb.service so need to render to temp
-# location and then cat into /etc/systemd/system/simdb.service
-- name: Render service file to temp location
+- name: Install SimDB systemd service
   ansible.builtin.template:
     src: simdb.service.j2
-    dest: /tmp/simdb.service.tmp
-
-- name: Check if service file needs updating
-  ansible.builtin.shell: diff /tmp/simdb.service.tmp /etc/systemd/system/simdb.service
-  register: service_diff
-  changed_when: false
-  failed_when: service_diff.rc > 1
-
-- name: Write simdb service file
-  ansible.builtin.shell:
-    cmd: cat /tmp/simdb.service.tmp > /etc/systemd/system/simdb.service
-  when: service_diff.rc == 1
-  notify: 
+    dest: /etc/systemd/system/simdb.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
     - Reload systemd daemon
     - Restart SimDB Service
-
-  ### But I suggest if we run the below with sudo user, we can achieve overwrite with indempotency
-  
-  # - name: Install SimDB systemd service
-  # ansible.builtin.template:
-  #   src: simdb.service.j2
-  #   dest: /etc/systemd/system/simdb.service
-  #   mode: "0644"
-  # become: true
-  # notify:
-  #   - Reload systemd daemon
-  #   - Restart SimDB service
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
+- name: Create SimDB nginx config directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/simdb.d
+    state: directory
+    mode: "0755"
+
 # Nginx configuration
-
 - name: Install nginx site configuration
+  become: true
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
@@ -109,12 +98,6 @@
     - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
   notify: Restart Nginx Service
 
-- name: Create SimDB nginx config directory
-  ansible.builtin.file:
-    path: /etc/nginx/conf.d/simdb.d
-    state: directory
-    mode: "0755"
-
 # -----------------------------------------------------------------------------
 # PostgreSQL database setup
 - name: Set database password encryption
@@ -122,9 +105,11 @@
   become_user: postgres
   community.postgresql.postgresql_alter_system:
     param: password_encryption
-    value: "'scram-sha-256'"
+    value: "scram-sha-256"
 
 - name: Create the simdb user
+  become: true
+  become_user: postgres
   community.postgresql.postgresql_user:
     login_db: postgres
     name: simdb
@@ -132,6 +117,8 @@
     comment: SimDB service account
 
 - name: Create database owned by "simdb"
+  become: true
+  become_user: postgres
   community.postgresql.postgresql_db:
     name: simdb
     owner: simdb
@@ -167,6 +154,12 @@
     dest: "{{ install_home }}/current/simdb"
     version: "{{ simdb_git_version }}"
 
+# should run Alembic on when the repo pulled have Alembic file
+- name: Check Alembic directory
+  ansible.builtin.stat:
+    path: "{{ install_home }}/current/simdb/alembic"
+  register: alembic_dir_stat
+
 - name: Copy Alembic files
   become: true
   become_user: "{{ simdb_user }}"
@@ -178,6 +171,8 @@
   loop:
     - "{{ install_home }}/current/simdb/alembic.ini"
     - "{{ install_home }}/current/simdb/alembic"
+  when: alembic_dir_stat.stat.exists
+  register: copy_alembic_dir
 
 - name: Run Alembic migrations
   become: true
@@ -187,9 +182,12 @@
     chdir: "{{ install_home }}/current"
   environment:
     DATABASE_URL: postgresql://simdb@localhost/simdb
+  when:
+    - alembic_dir_stat.stat.exists
+    - copy_alembic_dir
 
 # -----------------------------------------------------------------------------
-# Systemd services
+# Simdb log set up
 
 - name: Create SimDB logs directory
   become: true
@@ -200,33 +198,6 @@
     owner: "{{ simdb_user }}"
     group: "{{ simdb_user }}"
     mode: "0755"
-
-# - name: Reload systemd daemon
-#   ansible.builtin.command: sudo systemctl daemon-reload
-#   changed_when: true
-
-# - name: Enable SimDB service
-#   ansible.builtin.command: sudo systemctl enable simdb
-#   changed_when: true
-
-# - name: Restart SimDB service
-#   ansible.builtin.command: sudo systemctl restart simdb
-#   changed_when: true
-
-# - name: Enable Nginx service
-#   ansible.builtin.command: sudo systemctl enable nginx
-#   changed_when: true
-
-# - name: Restart Nginx service
-#   ansible.builtin.command: sudo systemctl restart nginx
-#   changed_when: true
-
-# - name: Enable and restart simdb service
-#   become: true
-#   ansible.builtin.systemd_service:
-#     name: simdb
-#     enabled: true
-#     state: restarted
 
 # -----------------------------------------------------------------------------
 # Database backup
@@ -252,7 +223,8 @@
 
 - name: Print SimDB service version
   ansible.builtin.debug:
-    msg: "Installed SimDB server version: {{ result.json.server_version }}"
+  # for now server_version might not exist in the index page result (if main branch)
+    msg: "Installed SimDB server version: {{ result.json }}"
 
 - name: Check nginx proxy
   ansible.builtin.uri:
@@ -265,5 +237,6 @@
 - name: Assert nginx proxy is correct
   ansible.builtin.assert:
     that:
+  # for now server_version might not exist in the index page result (if main branch)
       - nginx_simdb.status == 200
-      - "'server_version' in nginx_simdb.json"
+      # - "'server_version' in nginx_simdb.json"
