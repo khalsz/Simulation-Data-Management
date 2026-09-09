@@ -5,8 +5,6 @@
     name: "{{ item }}"
     state: latest
     virtualenv: "{{ install_home }}/releases/{{ simdb_git_version }}"
-    # virtualenv_command: /usr/bin/python3 -m venv
-    # move to python3.14 when SimDB has migrated to newer flask version
     virtualenv_command: /usr/bin/python3.14 -m venv
   loop:
     - "{{ simdb_pip_package }}"
@@ -106,37 +104,37 @@
   become_user: postgres
   community.postgresql.postgresql_alter_system:
     param: password_encryption
-    value: "'scram-sha-256'"
+    value: "scram-sha-256"
 
-- name: Create a new database with name "simdb"
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_db:
-    name: simdb
-    comment: SimDB database
+# - name: Create a new database with name "simdb"
+#   become: true
+#   become_user: postgres
+#   community.postgresql.postgresql_db:
+#     name: simdb
+#     comment: SimDB database
 
-- name: Create the simdb user
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_user:
-    login_db: simdb
-    name: simdb
-    password: "{{ db_password }}"
-    comment: SimDB service account
+# - name: Create the simdb user
+#   become: true
+#   become_user: postgres
+#   community.postgresql.postgresql_user:
+#     login_db: simdb
+#     name: simdb
+#     password: "{{ db_password }}"
+#     comment: SimDB service account
 
-- name: Change simdb db owner
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_owner:
-    new_owner: simdb
-    login_db: simdb
+# - name: Change simdb db owner
+#   become: true
+#   become_user: postgres
+#   community.postgresql.postgresql_owner:
+#     new_owner: simdb
+#     login_db: simdb
 
 - name: Add simdb user to pg_hba.conf
   become: true
   become_user: postgres
   ansible.builtin.lineinfile:
     path: /data/pgsql/data/pg_hba.conf
-    line: "host    simdb           simdb           0.0.0.0/0               scram-sha-256"
+    line: "host    simdb           simdb           127.0.0.1/32               scram-sha-256"
     state: present
     insertafter: "^# Other local users (use password instead of trust)"
 
@@ -224,14 +222,41 @@
 # -----------------------------------------------------------------------------
 # Database backup
 
-- name: Ensure a job that runs at 03:00 exists to backup the database"
-  become: true
-  become_user: "{{ simdb_user }}"
-  ansible.builtin.cron:
-    name: "backup database"
-    minute: "0"
-    hour: "3"
-    job: "/home/localadmin/db_backup.sh"
+# - name: Install database backup script
+#   become: true
+#   become_user: "{{ simdb_user }}"
+#   ansible.builtin.template:
+#     src: ./db_backup.sh.j2
+#     dest: "{{ sim_home }}/db_backup.sh.j2"
+#     mode: "0700"
+
+# -----------------------------------------------------------------------------
+# Cannot overwrite /etc/systemd/system/simdb_db_backup.timer so need to render to temp
+# location and then cat into /etc/systemd/system/simdb_db_backup.timer
+# - name: Render timer file to temp location
+#   ansible.builtin.copy:
+#     src: simdb_db_backup.timer.j2
+#     dest: /tmp/simdb_db_backup.timer.tmp
+
+# - name: Check if timer file needs updating
+#   ansible.builtin.shell: diff /tmp/simdb_db_backup.timer.tmp /etc/systemd/system/simdb_db_backup.timer
+#   register: timer_diff
+#   changed_when: false
+#   failed_when: timer_diff.rc > 1
+
+# - name: Write simdb database backup timer file
+#   ansible.builtin.shell:
+#     cmd: cat /tmp/simdb_db_backup.timer.tmp > /etc/systemd/system/simdb_db_backup.timer
+#   when: timer_diff.rc == 1
+
+# - name: Ensure a job that runs at 03:00 exists to backup the database"
+#   become: true
+#   become_user: "{{ simdb_user }}"
+#   ansible.builtin.cron:
+#     name: "backup database"
+#     minute: "0"
+#     hour: "3"
+#     job: "/home/localadmin/db_backup.sh"
 
 # -----------------------------------------------------------------------------
 # Check SimDB service

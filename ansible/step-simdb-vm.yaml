@@ -4,7 +4,7 @@
   vars:
     # Database password cannot use punctuation characters for now
     # db_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/db_password', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
-    db_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/db_password', chars=['ascii_letters', 'digits'], length=16) }}"
+    # db_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/db_password', chars=['ascii_letters', 'digits'], length=16) }}"
 
   roles:
     - role: simdb

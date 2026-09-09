@@ -1,25 +1,67 @@
 simdb_VM:
   hosts:
+    # ------------------------------------------------------------------------------------------------------------------
+    # Development VM
     step-simdb-dev.apps.l:
+      target: develop
+
+      # Ansible connection details
+      ansible_host: step-simdb-dev.apps.l
       ansible_connection: ssh
+      ansible_ssh_pass: "{{ dev_vm_password }}"
+      ansible_become_pass: "{{ dev_vm_password }}"
       ansible_user: localadmin
-      simdb_user: sim
-      target: dev
-      data_mount: /common/step-simdb/dev-simulations
+      ansible_python_interpreter: /usr/bin/python3
+
+      # System Info
+      domain_name: simdb-dev.ukfusionenergy.com
+      data_home: /common/step-simdb/dev-simulations
+      db_backup_dir: /common/step-simdb/db-backups
       ssl_cert: /etc/pki/tls/certs/step-simdb-dev.apps.l.pem
       ssl_cert_key: /etc/pki/tls/private/step-simdb-dev.apps.l.key
-      simdb_git_repo: >-
-        https://{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git
-      simdb_git_version: develop
+      db_password: "{{ dev_db_password }}"
 
-    step-simdb-prod.apps.l:
-      ansible_connection: ssh
-      ansible_user: localadmin
+      # SimDB
       simdb_user: sim
+      simdb_git_repo: https://gitlab-project-token:{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git
+      simdb_git_version: 0.16.0.dev1
       simdb_pip_package: >-
         imas-simdb[server,auth-ad,postgres]
-        @ git+https://github.com/iterorganization/SimDB.git@main
+        @ git+{{ simdb_git_repo }}@{{ simdb_git_version }}
+
+      # SimDB UI
+      simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
+      simdb_ui_git_version: aad816e4
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Production VM
+    step-simdb-prod.apps.l:
       target: prod
-      data_mount: /common/step-simdb/simulations
+
+      # Ansible connection details
+      ansible_host: step-simdb-prod.apps.l
+      ansible_connection: ssh
+      ansible_ssh_pass: "{{ prod_vm_password }}"
+      ansible_become_pass: "{{ prod_vm_password }}"
+      ansible_user: localadmin
+      ansible_python_interpreter: /usr/bin/python3
+
+      # System Info
+      domain_name: simdb.ukfusionenergy.com
+      data_home: /common/step-simdb/simulations
+      db_backup_dir: /common/step-simdb/db-backups
       ssl_cert: /etc/pki/tls/certs/step-simdb-prod.apps.l.pem
       ssl_cert_key: /etc/pki/tls/private/step-simdb-prod.apps.l.key
+      db_password: "{{ prod_db_password }}"
+
+      # SimDB
+      simdb_user: sim
+      simdb_git_repo: https://gitlab-project-token:{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git
+      simdb_git_version: 0.16.0.dev1
+      simdb_pip_package: >-
+        imas-simdb[server,auth-ad,postgres]
+        @ git+{{ simdb_git_repo }}@{{ simdb_git_version }}
+
+      # SimDB UI
+      simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
+      simdb_ui_git_version: aad816e4
