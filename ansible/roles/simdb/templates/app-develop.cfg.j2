@@ -49,9 +49,11 @@ default_timeout = 6000
 threshold = 100
 
 [authentication]
-type = ActiveDirectory
-ad_server = MSRV-CCFEPCDCE.CCFEPC.CCFE.AC.UK
-ad_domain = ccfepc.ccfe.ac.uk
+type = Okta
+okta_url = https://integrator-8447942.okta.com/oauth2/default
+okta_audience = api://default
+okta_cli_client_id = 0oa1618fq81UI7cQx698
+okta_ui_client_id = 0oa15ztipydyXI4ZB698
 
 [development]
 disable_checksum = True
