@@ -17,3 +17,20 @@ Comments:
 User:
   required: true
   type: string
+
+security:
+  type: dict
+  required: true
+  schema:
+    baseline:
+      type: string
+      required: true
+      allowed:
+      - OFFICIAL
+      - OFFICIAL SENSITIVE
+    ip_sensitive:
+      type: boolean
+      required: true
+    export_controlled:
+      type: boolean
+      required: true
