@@ -177,7 +177,7 @@
   args:
     chdir: "{{ install_home }}/current"
   environment:
-    DATABASE_URL: postgresql://simdb@localhost/simdb
+    DATABASE_URL: postgresql://simdb_admin:{{ db_admin_password }}@localhost/simdb
 
 # -----------------------------------------------------------------------------
 # Systemd services
