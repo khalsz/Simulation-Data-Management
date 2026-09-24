@@ -20,6 +20,7 @@ simdb_VM:
       ssl_cert: /etc/pki/tls/certs/step-simdb-dev.apps.l.pem
       ssl_cert_key: /etc/pki/tls/private/step-simdb-dev.apps.l.key
       db_password: "{{ dev_db_password }}"
+      db_admin_password: "{{ dev_db_admin_password }}"
 
       # SimDB
       simdb_user: sim
@@ -53,6 +54,7 @@ simdb_VM:
       ssl_cert: /etc/pki/tls/certs/step-simdb-prod.apps.l.pem
       ssl_cert_key: /etc/pki/tls/private/step-simdb-prod.apps.l.key
       db_password: "{{ prod_db_password }}"
+      db_admin_password: "{{ prod_db_admin_password }}"
 
       # SimDB
       simdb_user: sim
