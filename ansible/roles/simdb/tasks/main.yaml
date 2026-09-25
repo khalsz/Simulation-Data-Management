@@ -120,7 +120,7 @@
   become: true
   become_user: postgres
   community.postgresql.postgresql_user:
-    login_db: simdb_admin
+    login_db: simdb
     name: simdb_admin
     password: "{{ db_admin_password }}"
     state: present
@@ -136,8 +136,10 @@
     comment: SimDB database
 
 - name: Set privileges for the simdb user - tables
+  become: true
+  become_user: postgres
   community.postgresql.postgresql_privs:
-    database: simdb
+    login_db: simdb
     schema: public
     objs: ALL_IN_SCHEMA
     type: table
@@ -146,8 +148,10 @@
     state: present
 
 - name: Set privileges for the simdb user - sequences
+  become: true
+  become_user: postgres
   community.postgresql.postgresql_privs:
-    database: simdb
+    login_db: simdb
     schema: public
     objs: ALL_IN_SCHEMA
     type: table
@@ -155,14 +159,17 @@
     privs: SELECT,INSERT,UPDATE,DELETE
     state: present
 
-- name: Add simdb user to pg_hba.conf
+- name: Add users to pg_hba.conf
   become: true
   become_user: postgres
   ansible.builtin.lineinfile:
     path: /data/pgsql/data/pg_hba.conf
-    line: "host    simdb           simdb           127.0.0.1/32               scram-sha-256"
+    line: "host    simdb           {{ item }}           127.0.0.1/32               scram-sha-256"
     state: present
     insertafter: "^# Other local users (use password instead of trust)"
+  loop:
+    - simdb
+    - simdb_admin
 
 - name: Install pgpass file
   become: true
