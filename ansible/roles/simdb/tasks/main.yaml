@@ -110,7 +110,6 @@
   become: true
   become_user: postgres
   community.postgresql.postgresql_user:
-    login_db: simdb
     name: simdb
     password: "{{ db_password }}"
     state: present
@@ -120,7 +119,6 @@
   become: true
   become_user: postgres
   community.postgresql.postgresql_user:
-    login_db: simdb
     name: simdb_admin
     password: "{{ db_admin_password }}"
     state: present
@@ -134,30 +132,6 @@
     owner: simdb_admin
     state: present
     comment: SimDB database
-
-- name: Set privileges for the simdb user - tables
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_privs:
-    login_db: simdb
-    schema: public
-    objs: ALL_IN_SCHEMA
-    type: table
-    roles: simdb
-    privs: SELECT,INSERT,UPDATE,DELETE
-    state: present
-
-- name: Set privileges for the simdb user - sequences
-  become: true
-  become_user: postgres
-  community.postgresql.postgresql_privs:
-    login_db: simdb
-    schema: public
-    objs: ALL_IN_SCHEMA
-    type: table
-    roles: simdb
-    privs: SELECT,INSERT,UPDATE,DELETE
-    state: present
 
 - name: Add users to pg_hba.conf
   become: true
@@ -211,6 +185,33 @@
     chdir: "{{ install_home }}/current"
   environment:
     DATABASE_URL: postgresql://simdb_admin:{{ db_admin_password }}@localhost/simdb
+
+# -----------------------------------------------------------------------------
+# PostgreSQL database simdb user privileges (after possible schema updates)
+
+- name: Set privileges for the simdb user - tables
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    schema: public
+    objs: ALL_IN_SCHEMA
+    type: table
+    roles: simdb
+    privs: SELECT,INSERT,UPDATE,DELETE
+    state: present
+
+- name: Set privileges for the simdb user - sequences
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    schema: public
+    objs: ALL_IN_SCHEMA
+    type: sequence
+    roles: simdb
+    privs: USAGE,SELECT,UPDATE
+    state: present
 
 # -----------------------------------------------------------------------------
 # Systemd services
