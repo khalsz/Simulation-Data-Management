@@ -24,14 +24,14 @@ simdb_VM:
       # SimDB
       simdb_user: sim
       simdb_git_repo: https://gitlab-project-token:{{ simdb_git_token }}@gitlab.ukaea.uk/step/simulation-data-management/simdb.git
-      simdb_git_version: cc1deedc
+      simdb_git_version: 994f8f503d0c748ce47a51f45d48268a45c78521
       simdb_pip_package: >-
         imas-simdb[server,auth-okta,postgres]
         @ git+{{ simdb_git_repo }}@{{ simdb_git_version }}
 
       # SimDB UI
       simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
-      simdb_ui_git_version: ab68d9e9
+      simdb_ui_git_version: a8a0915a
 
     # ------------------------------------------------------------------------------------------------------------------
     # Production VM
