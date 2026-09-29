@@ -9,6 +9,7 @@
   loop:
     - "{{ simdb_pip_package }}"
     - gunicorn
+    - psycopg
 
 - name: Create release symlink
   become: true
