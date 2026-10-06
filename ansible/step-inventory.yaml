@@ -66,6 +66,9 @@ simdb_VM:
         imas-simdb[server,auth-ad,postgres]
         @ git+{{ simdb_git_repo }}@{{ simdb_git_version }}
 
+      # Maintainers
+      postgres_maintainers: []
+
       # SimDB UI
       simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
       simdb_ui_git_version: aad816e4
