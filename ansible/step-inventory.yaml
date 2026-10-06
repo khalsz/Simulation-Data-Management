@@ -33,6 +33,10 @@ simdb_VM:
       simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
       simdb_ui_git_version: a8a0915a
 
+      # Maintainers
+      postgres_maintainers:
+      - alahiff
+
     # ------------------------------------------------------------------------------------------------------------------
     # Production VM
     step-simdb-prod.apps.l:
