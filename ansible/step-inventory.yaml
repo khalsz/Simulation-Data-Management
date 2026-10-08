@@ -35,7 +35,11 @@ simdb_VM:
 
       # Maintainers
       postgres_maintainers:
-      - alahiff
+      - andrewlahiff
+      - jonathanhollocombe
+      - tonycantone
+      - javidahmed
+      - vishnupriyananantharaman
 
     # ------------------------------------------------------------------------------------------------------------------
     # Production VM
@@ -67,7 +71,12 @@ simdb_VM:
         @ git+{{ simdb_git_repo }}@{{ simdb_git_version }}
 
       # Maintainers
-      postgres_maintainers: []
+      postgres_maintainers:
+      - andrewlahiff
+      - jonathanhollocombe
+      - tonycantone
+      - javidahmed
+      - vishnupriyananantharaman
 
       # SimDB UI
       simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
