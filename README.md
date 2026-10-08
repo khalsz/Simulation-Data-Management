@@ -78,6 +78,38 @@ This provisions the following:
 - step-simdb-dev.apps.l: Development VM
 - step-simdb-prod.apps.l: Production VM
 
+### Postgres maintainer users
+
+The SimDB Ansible role can manage Postgres maintainer users. In order to add a new user, an additional secrets file
+needs to be provided when running the playbook, e.g. `simdb_maintainers_secrets.yaml`, or alternatively the
+existing `simdb_vm_secrets.yaml` updated. This needs to specify the
+passwords for the read and write users, e.g.
+```
+postgres_maintainer_passwords:
+  alahiff-read: "secretpassword"
+  alahiff-write: "secretpassword2"
+```
+Once a user has been added it's not necessary to provide this file anymore.
+
+The users ending in `-read` have read-only
+access (e.g. cannot run `UPDATE` or `DELETE`) and the users ending in `-write` have read-write access but are not admins.
+
+The inventory file has a maintainers section, e.g.
+```
+      # Maintainers
+      postgres_maintainers:
+      - alahiff
+      - aperson
+```
+If an existing username is removed from this list, the associated users in Postgres are removed. If a new user is added to
+`postgres_maintainers` but no passwords are supplied in the additional secrets file, Ansible will exit with an error.
+
+To summarise:
+* Users must be specified in `postgres_maintainers`.
+* To add a new user, add the username to `postgres_maintainers` and specify the passwords in `postgres_maintainer_passwords`. Once a user
+has been added it is not necessary to supply the password anymore.
+* To remove a user, remove the username from `postgres_maintainers`.
+
 ### Roles
 
 The provisioning roles are defined in `ansible/roles/`.

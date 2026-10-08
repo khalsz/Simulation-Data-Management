@@ -33,6 +33,14 @@ simdb_VM:
       simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"
       simdb_ui_git_version: a8a0915a
 
+      # Maintainers
+      postgres_maintainers:
+      - andrewlahiff
+      - jonathanhollocombe
+      - tonycantone
+      - javidahmed
+      - vishnupriyananantharaman
+
     # ------------------------------------------------------------------------------------------------------------------
     # Production VM
     step-simdb-prod.apps.l:
@@ -61,6 +69,14 @@ simdb_VM:
       simdb_pip_package: >-
         imas-simdb[server,auth-ad,postgres]
         @ git+{{ simdb_git_repo }}@{{ simdb_git_version }}
+
+      # Maintainers
+      postgres_maintainers:
+      - andrewlahiff
+      - jonathanhollocombe
+      - tonycantone
+      - javidahmed
+      - vishnupriyananantharaman
 
       # SimDB UI
       simdb_ui_artifact_url: "https://gitlab.ukaea.uk/api/v4/projects/20155/jobs/artifacts/master/download?job=build"

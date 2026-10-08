@@ -1,0 +1,217 @@
+- name: Build managed PostgreSQL role list
+  ansible.builtin.set_fact:
+    postgres_managed_roles: >-
+      {{
+        (
+          postgres_maintainers
+          | map('regex_replace', '$', '-read')
+          | list
+        )
+        +
+        (
+          postgres_maintainers
+          | map('regex_replace', '$', '-write')
+          | list
+        )
+      }}
+
+- name: Get existing developer roles
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_query:
+    login_db: postgres
+    query: |
+      SELECT rolname
+      FROM pg_roles
+      WHERE rolname ~ '-(read|write)$'
+      ORDER BY rolname
+  register: existing_postgres_roles
+
+- name: Build existing role list
+  ansible.builtin.set_fact:
+    postgres_existing_roles: >-
+      {{
+        existing_postgres_roles.query_all_results[0]
+        | default([])
+        | map(attribute='rolname')
+        | list
+      }}
+
+- name: Determine roles to create
+  become: true
+  become_user: postgres
+  ansible.builtin.set_fact:
+    postgres_roles_to_create: >-
+      {{
+        postgres_managed_roles
+        | difference(postgres_existing_roles)
+      }}
+
+- name: Determine roles to remove
+  become: true
+  become_user: postgres
+  ansible.builtin.set_fact:
+    postgres_roles_to_remove: >-
+      {{
+        postgres_existing_roles
+        | difference(postgres_managed_roles)
+      }}
+
+- name: Print roles to create
+  ansible.builtin.debug:
+    msg: "Roles to create: {{ postgres_roles_to_create }}"
+
+- name: Print roles to remove
+  ansible.builtin.debug:
+    msg: "Roles to remove: {{ postgres_roles_to_remove }}"
+
+- name: Check passwords exist for new roles
+  ansible.builtin.assert:
+    that:
+      - item in postgres_maintainer_passwords
+      - postgres_maintainer_passwords[item] | string | length > 0
+    fail_msg: >-
+      PostgreSQL role {{ item }} does not exist and no password
+      was supplied for it.
+  loop: "{{ postgres_roles_to_create }}"
+
+- name: Create new PostgreSQL roles
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ item }}"
+    password: "{{ postgres_maintainer_passwords[item] }}"
+    state: present
+    encrypted: true
+  loop: "{{ postgres_roles_to_create }}"
+  no_log: true
+
+- name: Remove obsolete PostgreSQL roles
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ postgres_roles_to_remove }}"
+
+- name: Create read privilege role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: maintainers_read
+    state: present
+    role_attr_flags: NOLOGIN
+    comment: Maintainers read-only role
+
+- name: Create write privilege role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: maintainers_write
+    state: present
+    role_attr_flags: NOLOGIN
+    comment: Maintainers read-write role
+
+- name: Grant read role to read-only users
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_membership:
+    login_db: postgres
+    groups:
+      - maintainers_read
+    target_roles:
+      - "{{ item }}-read"
+    state: present
+  loop: "{{ postgres_maintainers }}"
+
+- name: Grant write role to read/write users
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_membership:
+    login_db: postgres
+    groups:
+      - maintainers_write
+    target_roles:
+      - "{{ item }}-write"
+    state: present
+  loop: "{{ postgres_maintainers }}"
+
+- name: Grant CONNECT to read role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: database
+    obj: simdb
+    roles: maintainers_read
+    privs: CONNECT
+    state: present
+
+- name: Grant CONNECT to write role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: database
+    obj: simdb
+    roles: maintainers_write
+    privs: CONNECT
+    state: present
+
+- name: Grant schema usage to read role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: schema
+    obj: public
+    roles: maintainers_read
+    privs: USAGE
+    state: present
+
+- name: Grant schema usage to write role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: schema
+    obj: public
+    roles: maintainers_write
+    privs: USAGE
+    state: present
+
+- name: Grant SELECT on existing tables
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: table
+    schema: public
+    objs: ALL_IN_SCHEMA
+    roles: maintainers_read
+    privs: SELECT
+    state: present
+
+- name: Grant read/write on existing tables
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: table
+    schema: public
+    objs: ALL_IN_SCHEMA
+    roles: maintainers_write
+    privs: SELECT,INSERT,UPDATE,DELETE
+    state: present
+
+- name: Grant read/write on existing sequences
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    type: sequence
+    schema: public
+    objs: ALL_IN_SCHEMA
+    roles: maintainers_write
+    privs: USAGE,SELECT,UPDATE
+    state: present

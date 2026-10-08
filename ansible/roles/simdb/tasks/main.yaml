@@ -285,3 +285,9 @@
     that:
       - nginx_simdb.status == 200
       - "'server_version' in nginx_simdb.json"
+
+# -----------------------------------------------------------------------------
+# Maintainers
+
+- name: Add maintainers to Postgres
+  ansible.builtin.include_tasks: maintainers.yaml
