@@ -81,7 +81,8 @@ This provisions the following:
 ### Postgres maintainer users
 
 The SimDB Ansible role can manage Postgres maintainer users. In order to add a new user, an additional secrets file
-needs to be provided when running the playbook, e.g. `simdb_maintainers_secrets.yaml`. This file needs to specify the
+needs to be provided when running the playbook, e.g. `simdb_maintainers_secrets.yaml`, or alternatively the
+existing `simdb_vm_secrets.yaml` updated. This needs to specify the
 passwords for the read and write users, e.g.
 ```
 postgres_maintainer_passwords:
