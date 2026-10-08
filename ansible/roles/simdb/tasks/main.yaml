@@ -9,6 +9,7 @@
   loop:
     - "{{ simdb_pip_package }}"
     - gunicorn
+    - psycopg
 
 - name: Create release symlink
   become: true
@@ -106,37 +107,44 @@
     param: password_encryption
     value: "scram-sha-256"
 
-# - name: Create a new database with name "simdb"
-#   become: true
-#   become_user: postgres
-#   community.postgresql.postgresql_db:
-#     name: simdb
-#     comment: SimDB database
+- name: Create the simdb user
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: simdb
+    password: "{{ db_password }}"
+    state: present
+    comment: SimDB service account
 
-# - name: Create the simdb user
-#   become: true
-#   become_user: postgres
-#   community.postgresql.postgresql_user:
-#     login_db: simdb
-#     name: simdb
-#     password: "{{ db_password }}"
-#     comment: SimDB service account
+- name: Create the simdb admin user
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: simdb_admin
+    password: "{{ db_admin_password }}"
+    state: present
+    comment: SimDB admin account
 
-# - name: Change simdb db owner
-#   become: true
-#   become_user: postgres
-#   community.postgresql.postgresql_owner:
-#     new_owner: simdb
-#     login_db: simdb
+- name: Create a new database with name "simdb"
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: simdb
+    owner: simdb_admin
+    state: present
+    comment: SimDB database
 
-- name: Add simdb user to pg_hba.conf
+- name: Add users to pg_hba.conf
   become: true
   become_user: postgres
   ansible.builtin.lineinfile:
     path: /data/pgsql/data/pg_hba.conf
-    line: "host    simdb           simdb           127.0.0.1/32               scram-sha-256"
+    line: "host    simdb           {{ item }}           127.0.0.1/32               scram-sha-256"
     state: present
     insertafter: "^# Other local users (use password instead of trust)"
+  loop:
+    - simdb
+    - simdb_admin
 
 - name: Install pgpass file
   become: true
@@ -177,7 +185,34 @@
   args:
     chdir: "{{ install_home }}/current"
   environment:
-    DATABASE_URL: postgresql://simdb@localhost/simdb
+    DATABASE_URL: postgresql://simdb_admin:{{ db_admin_password }}@localhost/simdb
+
+# -----------------------------------------------------------------------------
+# PostgreSQL database simdb user privileges (after possible schema updates)
+
+- name: Set privileges for the simdb user - tables
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    schema: public
+    objs: ALL_IN_SCHEMA
+    type: table
+    roles: simdb
+    privs: SELECT,INSERT,UPDATE,DELETE
+    state: present
+
+- name: Set privileges for the simdb user - sequences
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    login_db: simdb
+    schema: public
+    objs: ALL_IN_SCHEMA
+    type: sequence
+    roles: simdb
+    privs: USAGE,SELECT,UPDATE
+    state: present
 
 # -----------------------------------------------------------------------------
 # Systemd services
