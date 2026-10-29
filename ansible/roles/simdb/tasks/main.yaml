@@ -66,17 +66,37 @@
     - "validation*.yaml"
 
 # -----------------------------------------------------------------------------
-- name: Install SimDB systemd service
+# Cannot overwrite /etc/systemd/system/simdb.service so need to render to temp
+# location and then cat into /etc/systemd/system/simdb.service
+- name: Render service file to temp location
   ansible.builtin.template:
     src: simdb.service.j2
-    dest: /etc/systemd/system/simdb.service
-    owner: root
-    group: root
-    mode: "0644"
-  become: true
-  notify:
-    - Reload systemd daemon
-    - Restart SimDB Service
+    dest: /tmp/simdb.service.tmp
+
+- name: Check if service file needs updating
+  ansible.builtin.shell: diff /tmp/simdb.service.tmp /etc/systemd/system/simdb.service
+  register: service_diff
+  changed_when: false
+  failed_when: service_diff.rc > 1
+
+- name: Write simdb service file
+  ansible.builtin.shell:
+    cmd: cat /tmp/simdb.service.tmp > /etc/systemd/system/simdb.service
+  when: service_diff.rc == 1
+
+
+# - name: Install SimDB systemd service
+#   ansible.builtin.template:
+#     src: simdb.service.j2
+#     dest: /etc/systemd/system/simdb.service
+#     owner: root
+#     group: root
+#     mode: "0644"
+#   become: true
+#   notify:
+#     - Reload systemd daemon
+#     - Restart SimDB Service
+#     - Enable SimDB service
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -97,7 +117,9 @@
   loop:
     - { src: './nginx_simdb.conf.j2', dest: '/etc/nginx/conf.d/simdb.conf' }
     - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
-  notify: Restart Nginx Service
+  notify: 
+    - Restart Nginx Service
+    - Enable Nginx service
 
 # -----------------------------------------------------------------------------
 # PostgreSQL database setup
@@ -169,6 +191,7 @@
     version: "{{ simdb_git_version }}"
 
 # should run Alembic on when the repo pulled have Alembic file
+# this will be removed when all repo and branches have Alembic
 - name: Check Alembic directory
   ansible.builtin.stat:
     path: "{{ install_home }}/current/simdb/alembic"
@@ -276,6 +299,10 @@
 #     hour: "3"
 #     job: "/home/localadmin/db_backup.sh"
 
+# - name: Ensure back scripts exits
+#   ansible.builtin.file:
+#     path: "/home/localadmin/db_backup.sh"
+#     state: file
 # -----------------------------------------------------------------------------
 # Check SimDB service
 

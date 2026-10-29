@@ -8,4 +8,4 @@
 
   roles:
     - role: simdb
-    - role: simdb-ui
+    # - role: simdb-ui
