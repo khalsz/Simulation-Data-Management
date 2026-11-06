@@ -16,7 +16,7 @@ argument_specs:
       install_home:
         description: The location of the SimDB installation
         type: str
-      data_mount:
+      data_home:
         description: The root directory under which SimDB data is stored
         type: str
         required: true
