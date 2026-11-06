@@ -15,6 +15,10 @@ server {
     ssl_certificate     {{ ssl_cert }};
     ssl_certificate_key {{ ssl_cert_key }};
 
+    location / {
+        return 308 https://$host$request_uri/api;
+    }
+
     include /etc/nginx/conf.d/simdb.d/*.conf;
 }
 
