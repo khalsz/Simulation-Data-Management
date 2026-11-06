@@ -35,91 +35,32 @@
 
 - name: Install server config file
   become: true
-  become_user: "{{ simdb_user }}"
   vars:
     secret_token: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/secret_token', chars=['hex'], length=32) }}"
     admin_password: "{{ lookup('ansible.builtin.password', 'credentials/' + target + '/admin_password', chars=['ascii_letters', 'digits', 'punctuation'], length=16) }}"
   ansible.builtin.template:
     src: "./app-{{ target }}.cfg.j2"
     dest: "{{ install_home }}/current/app.cfg"
-    owner: sim
+    owner: {{ simdb_user }}
     mode: "0600"
     backup: yes
 
 - name: Create validation directory
   become: true
-  become_user: "{{ simdb_user }}"
   ansible.builtin.file:
     path: "{{ install_home }}/current/validation"
     state: directory
-    owner: sim
+    owner: {{ simdb_user }}
     mode: "0700"
 
 - name: Install validation files
   become: true
-  become_user: "{{ simdb_user }}"
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ install_home }}/current/validation/"
-    owner: sim
+    owner: {{ simdb_user }}
   with_fileglob:
     - "validation*.yaml"
-
-# -----------------------------------------------------------------------------
-# Cannot overwrite /etc/systemd/system/simdb.service so need to render to temp
-# location and then cat into /etc/systemd/system/simdb.service
-- name: Render service file to temp location
-  ansible.builtin.template:
-    src: simdb.service.j2
-    dest: /tmp/simdb.service.tmp
-
-- name: Check if service file needs updating
-  ansible.builtin.shell: diff /tmp/simdb.service.tmp /etc/systemd/system/simdb.service
-  register: service_diff
-  changed_when: false
-  failed_when: service_diff.rc > 1
-
-- name: Write simdb service file
-  ansible.builtin.shell:
-    cmd: cat /tmp/simdb.service.tmp > /etc/systemd/system/simdb.service
-  when: service_diff.rc == 1
-
-
-# - name: Install SimDB systemd service
-#   ansible.builtin.template:
-#     src: simdb.service.j2
-#     dest: /etc/systemd/system/simdb.service
-#     owner: root
-#     group: root
-#     mode: "0644"
-#   become: true
-#   notify:
-#     - Reload systemd daemon
-#     - Restart SimDB Service
-#     - Enable SimDB service
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-- name: Create SimDB nginx config directory
-  become: true
-  ansible.builtin.file:
-    path: /etc/nginx/conf.d/simdb.d
-    state: directory
-    mode: "0755"
-
-# Nginx configuration
-- name: Install nginx site configuration
-  become: true
-  ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: 0644
-  loop:
-    - { src: './nginx_simdb.conf.j2', dest: '/etc/nginx/conf.d/simdb.conf' }
-    - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
-  notify: 
-    - Restart Nginx Service
-    - Enable Nginx service
 
 # -----------------------------------------------------------------------------
 # PostgreSQL database setup
@@ -128,7 +69,7 @@
   become_user: postgres
   community.postgresql.postgresql_alter_system:
     param: password_encryption
-    value: "scram-sha-256"
+    value: "'scram-sha-256'"
 
 - name: Create the simdb user
   become: true
@@ -161,14 +102,14 @@
   become: true
   become_user: postgres
   ansible.builtin.lineinfile:
-    path: /data/pgsql/data/pg_hba.conf
+    path: "{{ postgresql_data_dir }}pg_hba.conf"
     line: "host    simdb           {{ item }}           127.0.0.1/32               scram-sha-256"
     state: present
     insertafter: "^# Other local users (use password instead of trust)"
   loop:
     - simdb
     - simdb_admin
-  notify: Reload PostgreSQL service
+  notify: Reload PostgreSQL Service
 
 - name: Install pgpass file
   become: true
@@ -219,6 +160,7 @@
     chdir: "{{ install_home }}/current"
   environment:
     DATABASE_URL: postgresql://simdb_admin:{{ db_admin_password }}@localhost/simdb
+  when: alembic_dir_stat.stat.exists
 
 # -----------------------------------------------------------------------------
 # PostgreSQL database simdb user privileges (after possible schema updates)
@@ -252,13 +194,93 @@
 
 - name: Create SimDB logs directory
   become: true
-  become_user: "{{ simdb_user }}"
   ansible.builtin.file:
     path: "{{ install_home }}/logs"
     state: directory
     owner: "{{ simdb_user }}"
     group: "{{ simdb_user }}"
     mode: "0755"
+
+# -----------------------------------------------------------------------------
+# Cannot overwrite /etc/systemd/system/simdb.service so need to render to temp
+# location and then cat into /etc/systemd/system/simdb.service
+- name: Render service file to temp location
+  ansible.builtin.template:
+    src: simdb.service.j2
+    dest: /tmp/simdb.service.tmp
+
+- name: Check if service file exists
+  become: true
+  ansible.builtin.stat:
+    path: /etc/systemd/system/simdb.service
+  register: service_file_stat
+
+- name: Check if service file needs updating
+  become: true
+  ansible.builtin.command: 
+    cmd: diff /tmp/simdb.service.tmp /etc/systemd/system/simdb.service
+  register: service_diff
+  changed_when: false
+  failed_when: service_diff.rc > 1
+  when: service_file_stat.stat.exists
+
+- name: Write simdb service file
+  become: true
+  ansible.builtin.shell:
+      cmd: cat /tmp/simdb.service.tmp > /etc/systemd/system/simdb.service
+  when: service_diff.rc == 1
+  register: service_file_write
+  notify:
+    - Restart SimDB Service
+  
+- name: Reload systemd daemon
+  become: true
+  ansible.builtin.command: 
+    cmd: systemctl daemon-reload
+  changed_when: service_file_write is changed
+  notify: Restart SimDB Service
+
+- name: Enable SimDB service
+  become: true
+  ansible.builtin.command: 
+    cmd: systemctl enable simdb
+
+- name: Check SimDB active state
+  become: true
+  ansible.builtin.command:
+    cmd: systemctl is-active simdb
+  register: simdb_active
+  changed_when: false
+  failed_when: false
+
+- name: Start SimDB service if inactive
+  become: true
+  ansible.builtin.command:
+    cmd: systemctl start simdb
+  when: simdb_active.stdout | trim != "active"
+
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+- name: Create SimDB nginx config directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/simdb.d
+    state: directory
+    mode: "0755"
+
+# Nginx configuration
+- name: Install nginx site configuration
+  become: true
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0644
+  loop:
+    - { src: './nginx_simdb.conf.j2', dest: '/etc/nginx/conf.d/simdb.conf' }
+    - { src: './nginx_api.conf.j2', dest: '/etc/nginx/conf.d/simdb.d/api.conf' }
+  notify: 
+    - Restart Nginx Service
 
 # -----------------------------------------------------------------------------
 # Database backup
@@ -320,7 +342,7 @@
 
 - name: Check nginx proxy
   ansible.builtin.uri:
-    url: "https://localhost/api/"
+    url: "https://{{ domain_name }}/api/"
     method: GET
     validate_certs: false
     return_content: true
